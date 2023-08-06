@@ -8,7 +8,12 @@ import com.mohey.fcmpushservice.dto.FcmMessageDto;
 import com.mohey.fcmpushservice.dto.NotificationResponseDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.*;
+import org.apache.http.HttpHeaders;
+import org.checkerframework.checker.units.qual.A;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayInputStream;
@@ -27,6 +32,23 @@ public class FcmService {
     public FcmService(FirebaseProperties firebaseProperties, ObjectMapper mapper) {
         this.firebaseProperties = firebaseProperties;
         this.mapper = mapper;
+    }
+
+    public void sendMessageTo(String kafkaMessage) throws IOException{
+        String message = makeMessage(kafkaMessage);
+        String API_URL = "https://fcm.googleapis.com/v1/projects/" + firebaseProperties.getProject_id() +"/messages:send";
+        log.info("message = " + message);
+        OkHttpClient client = new OkHttpClient();
+        RequestBody requestBody = RequestBody.create(message, MediaType.get("application/json; charset=utf-8"));
+        Request request = new Request.Builder()
+                .url(API_URL)
+                .post(requestBody)
+                .addHeader(HttpHeaders.AUTHORIZATION,"Bearer " + getAccessToken())
+                .addHeader(HttpHeaders.CONTENT_TYPE, "application/json; UTF-8")
+                .build();
+        Response response = client.newCall(request)
+                .execute();
+        System.out.println(response.body().string());
     }
 
     private String makeMessage(String kafkaMessage) throws JsonProcessingException{
