@@ -20,4 +20,11 @@ public class FcmListener {
         log.info("푸시 알림 메세지 : " + kafkaMessage);
         fcmService.sendMessageTo(kafkaMessage);
     }
+
+    @KafkaListener(topics="all-push")
+    public void allPush(String kafkaMessage) throws IOException{
+        log.info("전체 푸시 알림 메시지 : " + kafkaMessage);
+        fcmService.sendMessageTopic(kafkaMessage);
+    }
+
 }

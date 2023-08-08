@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.mohey.fcmpushservice.config.FirebaseProperties;
 import com.mohey.fcmpushservice.dto.FcmMessageDto;
+import com.mohey.fcmpushservice.dto.FcmTopicMessageDto;
+import com.mohey.fcmpushservice.dto.NoticeResponseDto;
 import com.mohey.fcmpushservice.dto.NotificationResponseDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +37,7 @@ public class FcmService {
     }
 
     public void sendMessageTo(String kafkaMessage) throws IOException{
-        String message = makeMessage(kafkaMessage);
+        String message = makeMessageTo(kafkaMessage);
         String API_URL = "https://fcm.googleapis.com/v1/projects/" + firebaseProperties.getProject_id() +"/messages:send";
         log.info("message = " + message);
         OkHttpClient client = new OkHttpClient();
@@ -50,8 +52,23 @@ public class FcmService {
                 .execute();
         System.out.println(response.body().string());
     }
-
-    private String makeMessage(String kafkaMessage) throws JsonProcessingException{
+    public void sendMessageTopic(String kafkaMessage) throws IOException{
+        String message = makeMessageTopic(kafkaMessage);
+        String API_URL = "https://fcm.googleapis.com/v1/projects/" + firebaseProperties.getProject_id() +"/messages:send";
+        log.info("message = " + message);
+        OkHttpClient client = new OkHttpClient();
+        RequestBody requestBody = RequestBody.create(message, MediaType.get("application/json; charset=utf-8"));
+        Request request = new Request.Builder()
+                .url(API_URL)
+                .post(requestBody)
+                .addHeader(HttpHeaders.AUTHORIZATION,"Bearer " + getAccessToken())
+                .addHeader(HttpHeaders.CONTENT_TYPE, "application/json; UTF-8")
+                .build();
+        Response response = client.newCall(request)
+                .execute();
+        System.out.println(response.body().string());
+    }
+    private String makeMessageTo(String kafkaMessage) throws JsonProcessingException{
         try{
             NotificationResponseDto notificationResponseDto = mapper.readValue(kafkaMessage, NotificationResponseDto.class);
             FcmMessageDto fcmMessageDto = FcmMessageDto.builder()
@@ -70,7 +87,25 @@ public class FcmService {
         }
         return null;
     }
-
+    private String makeMessageTopic(String kafkaMessage) throws JsonProcessingException{
+        try{
+            NoticeResponseDto noticeResponseDto = mapper.readValue(kafkaMessage, NoticeResponseDto.class);
+            FcmTopicMessageDto fcmTopicMessageDto = FcmTopicMessageDto.builder()
+                    .message(FcmTopicMessageDto.Message.builder()
+                            .topic(noticeResponseDto.getTopic())
+                            .notification(FcmTopicMessageDto.Notification.builder()
+                                    .title(noticeResponseDto.getTitle())
+                                    .body(noticeResponseDto.getBody())
+                                    .build())
+                            .build())
+                    .validate_only(false)
+                    .build();
+            return mapper.writeValueAsString(fcmTopicMessageDto);
+        }catch (JsonProcessingException ex){
+            ex.printStackTrace();
+        }
+        return null;
+    }
     private String getAccessToken() throws IOException {
         log.info("properties :" + firebaseProperties);
         String firebaseCredentials = mapper.writeValueAsString(firebaseProperties);
