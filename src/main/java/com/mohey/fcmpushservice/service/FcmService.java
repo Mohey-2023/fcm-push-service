@@ -4,18 +4,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.mohey.fcmpushservice.config.FirebaseProperties;
-import com.mohey.fcmpushservice.dto.FcmMessageDto;
-import com.mohey.fcmpushservice.dto.FcmTopicMessageDto;
-import com.mohey.fcmpushservice.dto.NoticeResponseDto;
-import com.mohey.fcmpushservice.dto.NotificationResponseDto;
+import com.mohey.fcmpushservice.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 import org.apache.http.HttpHeaders;
-import org.checkerframework.checker.units.qual.A;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayInputStream;
@@ -68,6 +62,31 @@ public class FcmService {
                 .execute();
         System.out.println(response.body().string());
     }
+
+    public void sendChat(String kafkaMessage) throws IOException{
+        String API_URL = "https://fcm.googleapis.com/v1/projects/" + firebaseProperties.getProject_id() +"/messages:send";
+        OkHttpClient client = new OkHttpClient();
+        ChatResponseDto chatResponseDto = mapper.readValue(kafkaMessage, ChatResponseDto.class);
+        String senderUuid = chatResponseDto.getSenderUuid();
+        for(GroupMemberDto groupMemberDto: chatResponseDto.getGroupMembers()) {
+            if (senderUuid.equals(groupMemberDto.getMemberUuid())) {
+                continue;
+            }
+            for (String fcmToken : groupMemberDto.getDeviceTokenList()) {
+                String message = makeChatMessage(fcmToken, chatResponseDto);
+                RequestBody requestBody = RequestBody.create(message, MediaType.get("application/json; charset=utf-8"));
+                Request request = new Request.Builder()
+                        .url(API_URL)
+                        .post(requestBody)
+                        .addHeader(HttpHeaders.AUTHORIZATION,"Bearer " + getAccessToken())
+                        .addHeader(HttpHeaders.CONTENT_TYPE, "application/json; UTF-8")
+                        .build();
+                Response response = client.newCall(request)
+                        .execute();
+                System.out.println(response.body().string());
+            }
+        }
+    }
     private String makeMessageTo(String kafkaMessage) throws JsonProcessingException{
         try{
             NotificationResponseDto notificationResponseDto = mapper.readValue(kafkaMessage, NotificationResponseDto.class);
@@ -106,6 +125,25 @@ public class FcmService {
         }
         return null;
     }
+
+    private String makeChatMessage(String fcmToken,ChatResponseDto chatResponseDto) {
+        try {
+            FcmMessageDto fcmMessageDto = FcmMessageDto.builder()
+                    .message(FcmMessageDto.Message.builder()
+                            .token(fcmToken)
+                            .notification(FcmMessageDto.Notification.builder()
+                                    .title(chatResponseDto.getGroupName())
+                                    .body(chatResponseDto.getSenderName() +  ": " + chatResponseDto.getMessage())
+                                    .build())
+                            .build())
+                    .validate_only(false)
+                    .build();
+            return mapper.writeValueAsString(fcmMessageDto);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private String getAccessToken() throws IOException {
         log.info("properties :" + firebaseProperties);
         String firebaseCredentials = mapper.writeValueAsString(firebaseProperties);
