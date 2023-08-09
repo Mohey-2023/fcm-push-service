@@ -27,4 +27,9 @@ public class FcmListener {
         fcmService.sendMessageTopic(kafkaMessage);
     }
 
+    @KafkaListener(topics="chat")
+    public void chatMessage(String kafkaMessage) throws IOException{
+        log.info("채팅 메시지 : " + kafkaMessage);
+        fcmService.sendChat(kafkaMessage);
+    }
 }
