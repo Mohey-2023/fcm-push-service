@@ -7,6 +7,7 @@ import lombok.Getter;
 @AllArgsConstructor
 public class NotificationResponseDto {
     private String fcmToken;
+    private String type;
     private String title;
     private String body;
 }
