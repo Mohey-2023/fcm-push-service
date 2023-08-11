@@ -40,7 +40,7 @@ public class FcmService {
         String message = makeMessageTo(kafkaMessage);
         JsonNode jsonNode = mapper.readTree(kafkaMessage);
         String type = jsonNode.path("type").asText();
-        log.info("tyep : " + type);
+        log.info("type : " + type);
         String API_URL = "https://fcm.googleapis.com/v1/projects/" + firebaseProperties.getProject_id() +"/messages:send";
         log.info("message = " + message);
         OkHttpClient client = new OkHttpClient();
@@ -77,6 +77,7 @@ public class FcmService {
         OkHttpClient client = new OkHttpClient();
         ChatResponseDto chatResponseDto = mapper.readValue(kafkaMessage, ChatResponseDto.class);
         String senderUuid = chatResponseDto.getSenderUuid();
+        String type = "chat";
         for(GroupMemberDto groupMemberDto: chatResponseDto.getGroupMembers()) {
             if (senderUuid.equals(groupMemberDto.getMemberUuid())) {
                 continue;
@@ -92,7 +93,7 @@ public class FcmService {
                         .build();
                 Response response = client.newCall(request)
                         .execute();
-                System.out.println(response.body().string());
+                saveLog(response,type);
             }
         }
     }
@@ -138,12 +139,12 @@ public class FcmService {
     private String makeChatMessage(String fcmToken,ChatResponseDto chatResponseDto) {
         try {
             String bodyMessage = chatResponseDto.getSenderName();
-            String imgUrl = "";
+            String imageUrl = "";
             String messageType = chatResponseDto.getMessageType();
             if("message".equals(messageType)){
                 bodyMessage = bodyMessage + ": " + chatResponseDto.getMessage();
             }else if("image".equals(messageType)){
-                imgUrl = chatResponseDto.getImgUrl();
+                imageUrl = chatResponseDto.getImageUrl();
             }else if("location".equals(messageType)){
                 bodyMessage += ": 위치 공유";
             }
@@ -153,7 +154,7 @@ public class FcmService {
                             .notification(FcmMessageDto.Notification.builder()
                                     .title(chatResponseDto.getGroupName())
                                     .body(bodyMessage)
-                                    .image(imgUrl)
+                                    .image(imageUrl)
                                     .build())
                             .build())
                     .validate_only(false)

@@ -12,7 +12,7 @@ public class ChatResponseDto {
     private String senderName;
     private String message;
     private String messageType;
-    private String imgUrl;
+    private String imageUrl;
     private List<GroupMemberDto> groupMembers;
 }
 
