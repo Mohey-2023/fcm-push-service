@@ -6,7 +6,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import java.util.Date;
 
 @Data
-@Document(collection = "log")
+@Document(collection = "fcm_notifications_log")
 public class FcmLog {
     private Date timestamp;
     private boolean success;
