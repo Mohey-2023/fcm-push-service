@@ -59,6 +59,8 @@ public class FcmService {
         String message = makeMessageTopic(kafkaMessage);
         String API_URL = "https://fcm.googleapis.com/v1/projects/" + firebaseProperties.getProject_id() +"/messages:send";
         log.info("message = " + message);
+        JsonNode jsonNode = mapper.readTree(kafkaMessage);
+        String type = jsonNode.path("topic").asText();
         OkHttpClient client = new OkHttpClient();
         RequestBody requestBody = RequestBody.create(message, MediaType.get("application/json; charset=utf-8"));
         Request request = new Request.Builder()
@@ -69,7 +71,7 @@ public class FcmService {
                 .build();
         Response response = client.newCall(request)
                 .execute();
-        System.out.println(response.body().string());
+        saveLog(response,type);
     }
 
     public void sendChat(String kafkaMessage) throws IOException{
