@@ -2,6 +2,7 @@ package com.mohey.fcmpushservice.config;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
@@ -15,10 +16,13 @@ import java.util.Map;
 @EnableKafka
 @Configuration
 public class KafkaConsumerConfig {
+    @Value("${my.config.kafka}")
+    private String kafkaConfig;
+
     @Bean
     public ConsumerFactory<String,String> consumerFactory(){
         Map<String,Object> properties = new HashMap<>();
-        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,"${my.config.kafka}");
+        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,kafkaConfig);
         properties.put(ConsumerConfig.GROUP_ID_CONFIG,"consumerGroupId");
         properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
