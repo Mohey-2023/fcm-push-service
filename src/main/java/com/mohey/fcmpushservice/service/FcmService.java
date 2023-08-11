@@ -1,10 +1,13 @@
 package com.mohey.fcmpushservice.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.mohey.fcmpushservice.config.FirebaseProperties;
+import com.mohey.fcmpushservice.document.FcmLog;
 import com.mohey.fcmpushservice.dto.*;
+import com.mohey.fcmpushservice.repository.FcmLogRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
@@ -14,6 +17,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.Date;
 import java.util.List;
 
 @Component
@@ -22,16 +26,21 @@ import java.util.List;
 public class FcmService {
 
     private FirebaseProperties firebaseProperties;
+    private final FcmLogRepository fcmLogRepository;
     private final ObjectMapper mapper;
 
     @Autowired
-    public FcmService(FirebaseProperties firebaseProperties, ObjectMapper mapper) {
+    public FcmService(FirebaseProperties firebaseProperties, FcmLogRepository fcmLogRepository, ObjectMapper mapper) {
         this.firebaseProperties = firebaseProperties;
+        this.fcmLogRepository = fcmLogRepository;
         this.mapper = mapper;
     }
 
     public void sendMessageTo(String kafkaMessage) throws IOException{
         String message = makeMessageTo(kafkaMessage);
+        JsonNode jsonNode = mapper.readTree(kafkaMessage);
+        String type = jsonNode.path("type").asText();
+        log.info("tyep : " + type);
         String API_URL = "https://fcm.googleapis.com/v1/projects/" + firebaseProperties.getProject_id() +"/messages:send";
         log.info("message = " + message);
         OkHttpClient client = new OkHttpClient();
@@ -44,7 +53,7 @@ public class FcmService {
                 .build();
         Response response = client.newCall(request)
                 .execute();
-        System.out.println(response.body().string());
+        saveLog(response,type);
     }
     public void sendMessageTopic(String kafkaMessage) throws IOException{
         String message = makeMessageTopic(kafkaMessage);
@@ -145,15 +154,40 @@ public class FcmService {
     }
 
     private String getAccessToken() throws IOException {
-        log.info("properties :" + firebaseProperties);
+//        log.info("properties :" + firebaseProperties);
         String firebaseCredentials = mapper.writeValueAsString(firebaseProperties);
-        log.info("firebaseCredientials = " + firebaseCredentials);
+//        log.info("firebaseCredientials = " + firebaseCredentials);
         ByteArrayInputStream credentialsAsStream = new ByteArrayInputStream(firebaseCredentials.getBytes());
         GoogleCredentials googleCredentials = GoogleCredentials
                 .fromStream(credentialsAsStream)
                 .createScoped(List.of("https://www.googleapis.com/auth/cloud-platform"));
         googleCredentials.refreshIfExpired();
-        log.info("token : " + googleCredentials.getAccessToken().getTokenValue());
+//        log.info("token : " + googleCredentials.getAccessToken().getTokenValue());
         return googleCredentials.getAccessToken().getTokenValue();
+    }
+
+    private void saveLog(Response response,String type) throws IOException{
+        String responseBody = response.body().string();
+
+        FcmLog fcmLog = new FcmLog();
+        fcmLog.setTimestamp(new Date());
+        fcmLog.setSuccess(response.isSuccessful());
+        fcmLog.setStatusCode(response.code());
+
+        if(response.isSuccessful()){
+            // 200 전송 성공
+            JsonNode rootNode = mapper.readTree(responseBody);
+            String messageId = rootNode.path("name").asText();
+            fcmLog.setFcmMessageId(messageId);
+        } else{
+            // 400 에러
+            JsonNode rootNode = mapper.readTree(responseBody);
+            String status = rootNode.path("error").path("status").asText();
+            fcmLog.setErrorMessage(status);
+        }
+
+        fcmLog.setType(type);
+        log.info("fcmLog : " + fcmLog.toString());
+        fcmLogRepository.save(fcmLog);
     }
 }
