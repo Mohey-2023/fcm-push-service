@@ -128,16 +128,28 @@ public class FcmService {
 
     private String makeChatMessage(String fcmToken,ChatResponseDto chatResponseDto) {
         try {
+            String bodyMessage = chatResponseDto.getSenderName();
+            String imgUrl = "";
+            String messageType = chatResponseDto.getMessageType();
+            if("message".equals(messageType)){
+                bodyMessage = bodyMessage + ": " + chatResponseDto.getMessage();
+            }else if("image".equals(messageType)){
+                imgUrl = chatResponseDto.getImgUrl();
+            }else if("location".equals(messageType)){
+                bodyMessage += ": 위치 공유";
+            }
             FcmMessageDto fcmMessageDto = FcmMessageDto.builder()
                     .message(FcmMessageDto.Message.builder()
                             .token(fcmToken)
                             .notification(FcmMessageDto.Notification.builder()
                                     .title(chatResponseDto.getGroupName())
-                                    .body(chatResponseDto.getSenderName() +  ": " + chatResponseDto.getMessage())
+                                    .body(bodyMessage)
+                                    .image(imgUrl)
                                     .build())
                             .build())
                     .validate_only(false)
                     .build();
+            log.info("fcmMessage : " + fcmMessageDto.toString());
             return mapper.writeValueAsString(fcmMessageDto);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
@@ -145,15 +157,15 @@ public class FcmService {
     }
 
     private String getAccessToken() throws IOException {
-        log.info("properties :" + firebaseProperties);
+//        log.info("properties :" + firebaseProperties);
         String firebaseCredentials = mapper.writeValueAsString(firebaseProperties);
-        log.info("firebaseCredientials = " + firebaseCredentials);
+//        log.info("firebaseCredientials = " + firebaseCredentials);
         ByteArrayInputStream credentialsAsStream = new ByteArrayInputStream(firebaseCredentials.getBytes());
         GoogleCredentials googleCredentials = GoogleCredentials
                 .fromStream(credentialsAsStream)
                 .createScoped(List.of("https://www.googleapis.com/auth/cloud-platform"));
         googleCredentials.refreshIfExpired();
-        log.info("token : " + googleCredentials.getAccessToken().getTokenValue());
+//        log.info("token : " + googleCredentials.getAccessToken().getTokenValue());
         return googleCredentials.getAccessToken().getTokenValue();
     }
 }

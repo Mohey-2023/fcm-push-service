@@ -25,6 +25,7 @@ public class FcmMessageDto {
     public static class Notification{
         private String title;
         private String body;
+        private String image;
     }
 
 }
