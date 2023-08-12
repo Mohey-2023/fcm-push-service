@@ -169,15 +169,15 @@ public class FcmService {
     }
 
     private String getAccessToken() throws IOException {
-//        log.info("properties :" + firebaseProperties);
+        log.info("properties :" + firebaseProperties);
         String firebaseCredentials = mapper.writeValueAsString(firebaseProperties);
-//        log.info("firebaseCredientials = " + firebaseCredentials);
+        log.info("firebaseCredientials = " + firebaseCredentials);
         ByteArrayInputStream credentialsAsStream = new ByteArrayInputStream(firebaseCredentials.getBytes());
         GoogleCredentials googleCredentials = GoogleCredentials
                 .fromStream(credentialsAsStream)
                 .createScoped(List.of("https://www.googleapis.com/auth/cloud-platform"));
         googleCredentials.refreshIfExpired();
-//        log.info("token : " + googleCredentials.getAccessToken().getTokenValue());
+        log.info("token : " + googleCredentials.getAccessToken().getTokenValue());
         return googleCredentials.getAccessToken().getTokenValue();
     }
 
