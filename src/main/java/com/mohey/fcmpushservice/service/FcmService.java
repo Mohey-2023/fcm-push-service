@@ -148,7 +148,7 @@ public class FcmService {
             }else if("image".equals(messageType)){
                 imageUrl = chatResponseDto.getImageUrl();
             }else if("location".equals(messageType)){
-                bodyMessage += ": 위치 공유";
+                bodyMessage = bodyMessage + ": " + chatResponseDto.getMessage();
             }
             FcmMessageDto fcmMessageDto = FcmMessageDto.builder()
                     .message(FcmMessageDto.Message.builder()
