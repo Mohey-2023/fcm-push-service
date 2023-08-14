@@ -24,10 +24,10 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class FcmService {
-
     private FirebaseProperties firebaseProperties;
     private final FcmLogRepository fcmLogRepository;
     private final ObjectMapper mapper;
+    private final int timeDiff = 9 * 60 * 60 * 1000;
 
     @Autowired
     public FcmService(FirebaseProperties firebaseProperties, FcmLogRepository fcmLogRepository, ObjectMapper mapper) {
@@ -182,10 +182,12 @@ public class FcmService {
     }
 
     private void saveLog(Response response,String type) throws IOException{
+        Date currentTime = new Date(new Date().getTime() + timeDiff);
+        log.info("currentTime : " + currentTime);
         String responseBody = response.body().string();
 
         FcmLog fcmLog = new FcmLog();
-        fcmLog.setTimestamp(new Date());
+        fcmLog.setTimestamp(currentTime);
         fcmLog.setSuccess(response.isSuccessful());
         fcmLog.setStatusCode(response.code());
 
